@@ -28,14 +28,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
 	"github.com/sigstore/rekor-monitor/pkg/identity"
 	"github.com/sigstore/rekor-monitor/pkg/rekor"
 	"github.com/sigstore/rekor-monitor/pkg/test"
 	"github.com/sigstore/rekor/pkg/client"
 	"github.com/sigstore/rekor/pkg/generated/client/entries"
-	"github.com/sigstore/rekor/pkg/generated/models"
 	"github.com/sigstore/rekor/pkg/types"
 	"github.com/sigstore/rekor/pkg/util"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
@@ -43,11 +40,12 @@ import (
 	"sigs.k8s.io/release-utils/version"
 
 	hashedrekord_v001 "github.com/sigstore/rekor/pkg/types/hashedrekord/v0.0.1"
-	rekord "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1"
 )
 
 const (
 	rekorURL = "http://127.0.0.1:3000"
+	subject  = "subject@example.com"
+	issuer   = "oidc-issuer@domain.com"
 )
 
 // Test RunConsistencyCheck:
@@ -65,9 +63,6 @@ func TestRunConsistencyCheck(t *testing.T) {
 		t.Errorf("error getting log verifier: %v", err)
 	}
 
-	subject := "subject@example.com"
-	issuer := "oidc-issuer@domain.com"
-
 	rootCert, rootKey, _ := test.GenerateRootCA()
 	leafCert, leafKey, _ := test.GenerateLeafCert(subject, issuer, rootCert, rootKey)
 
@@ -81,21 +76,6 @@ func TestRunConsistencyCheck(t *testing.T) {
 	sig, err := signer.SignMessage(bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("error signing message: %v", err)
-	}
-
-	rekordEntry := rekord.V001Entry{
-		RekordObj: models.RekordV001Schema{
-			Data: &models.RekordV001SchemaData{
-				Content: strfmt.Base64(payload),
-			},
-			Signature: &models.RekordV001SchemaSignature{
-				Content: (*strfmt.Base64)(&sig),
-				Format:  swag.String(models.RekordV001SchemaSignatureFormatX509),
-				PublicKey: &models.RekordV001SchemaSignaturePublicKey{
-					Content: (*strfmt.Base64)(&pemCert),
-				},
-			},
-		},
 	}
 
 	hashedrekord := &hashedrekord_v001.V001Entry{}
@@ -117,17 +97,6 @@ func TestRunConsistencyCheck(t *testing.T) {
 		t.Errorf("error creating log entry: %v", err)
 	}
 
-	params = entries.NewCreateLogEntryParams()
-	rekordModel := models.Rekord{
-		APIVersion: swag.String(rekordEntry.APIVersion()),
-		Spec:       rekordEntry.RekordObj,
-	}
-	params.SetProposedEntry(&rekordModel)
-	resp, err = rekorClient.Entries.CreateLogEntry(params)
-	if !resp.IsSuccess() || err != nil {
-		t.Errorf("error creating log entry: %v", err)
-	}
-
 	logInfo, err := rekor.GetLogInfo(context.Background(), rekorClient)
 	if err != nil {
 		t.Errorf("error getting log info: %v", err)
@@ -136,21 +105,8 @@ func TestRunConsistencyCheck(t *testing.T) {
 	if err := checkpoint.UnmarshalText([]byte(*logInfo.SignedTreeHead)); err != nil {
 		t.Errorf("%v", err)
 	}
-	iterator := 0
-	for checkpoint.Size <= 0 {
-		logInfo, err = rekor.GetLogInfo(context.Background(), rekorClient)
-		if err != nil {
-			t.Errorf("error getting log info: %v", err)
-		}
-		checkpoint := &util.SignedCheckpoint{}
-		if err := checkpoint.UnmarshalText([]byte(*logInfo.SignedTreeHead)); err != nil {
-			t.Errorf("error unmarshalling checkpoint: %v", err)
-		}
-		iterator++
-		if iterator >= 5 {
-			t.Errorf("log info checkpoint failed to update in time")
-		}
-		time.Sleep(2 * time.Second)
+	if checkpoint.Size != 1 {
+		t.Errorf("expected checkpoint size of 1, received size %d", checkpoint.Size)
 	}
 
 	tempDir := t.TempDir()
@@ -201,6 +157,19 @@ func TestRunConsistencyCheck(t *testing.T) {
 	if !resp.IsSuccess() || err != nil {
 		t.Errorf("error creating log entry: %v", err)
 	}
+
+	logInfo, err = rekor.GetLogInfo(context.Background(), rekorClient)
+	if err != nil {
+		t.Errorf("error getting log info: %v", err)
+	}
+	checkpoint = &util.SignedCheckpoint{}
+	if err := checkpoint.UnmarshalText([]byte(*logInfo.SignedTreeHead)); err != nil {
+		t.Errorf("%v", err)
+	}
+	if checkpoint.Size != 2 {
+		t.Errorf("expected checkpoint size of 2, received size %d", checkpoint.Size)
+	}
+
 	err = RunConsistencyCheck(&interval, rekorClient, verifier, &tempLogInfoFileName, monitoredVals, &tempOutputIdentitiesFileName, &once)
 	if err != nil {
 		t.Errorf("second consistency check failed: %v", err)
@@ -212,6 +181,6 @@ func TestRunConsistencyCheck(t *testing.T) {
 	}
 	tempOutputIdentitiesString := string(tempOutputIdentities)
 	if !strings.Contains(tempOutputIdentitiesString, subject) {
-		t.Errorf("expected to find subject@example.com, did not")
+		t.Errorf("expected to find %s, did not", subject)
 	}
 }
