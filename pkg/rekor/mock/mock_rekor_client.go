@@ -35,9 +35,13 @@ type EntriesClient struct {
 	ETag     string
 	Location strfmt.URI
 	LogEntry models.LogEntry
+	Error    error
 }
 
 func (m *EntriesClient) CreateLogEntry(_ *entries.CreateLogEntryParams, _ ...entries.ClientOption) (*entries.CreateLogEntryCreated, error) {
+	if m.Error != nil {
+		return nil, m.Error
+	}
 	return &entries.CreateLogEntryCreated{
 		ETag:     m.ETag,
 		Location: m.Location,
@@ -54,6 +58,9 @@ func (m *EntriesClient) GetLogEntryByUUID(_ *entries.GetLogEntryByUUIDParams, _ 
 }
 
 func (m *EntriesClient) SearchLogQuery(params *entries.SearchLogQueryParams, _ ...entries.ClientOption) (*entries.SearchLogQueryOK, error) {
+	if m.Error != nil {
+		return nil, m.Error
+	}
 	resp := []models.LogEntry{}
 	if m.Entries != nil {
 		for _, i := range params.Entry.LogIndexes {
@@ -74,15 +81,22 @@ func (m *EntriesClient) SetTransport(_ runtime.ClientTransport) {}
 type TlogClient struct {
 	LogInfo          *models.LogInfo
 	ConsistencyProof *models.ConsistencyProof
+	Error            error
 }
 
 func (m *TlogClient) GetLogInfo(_ *tlog.GetLogInfoParams, _ ...tlog.ClientOption) (*tlog.GetLogInfoOK, error) {
+	if m.Error != nil {
+		return nil, m.Error
+	}
 	return &tlog.GetLogInfoOK{
 		Payload: m.LogInfo,
 	}, nil
 }
 
 func (m *TlogClient) GetLogProof(_ *tlog.GetLogProofParams, _ ...tlog.ClientOption) (*tlog.GetLogProofOK, error) {
+	if m.Error != nil {
+		return nil, m.Error
+	}
 	return &tlog.GetLogProofOK{
 		Payload: m.ConsistencyProof,
 	}, nil
