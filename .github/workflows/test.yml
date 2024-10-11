@@ -20,4 +20,7 @@ jobs:
             file_issue: true # Strongly recommended: Files an issue on monitoring failure
             artifact_retention_days: 14 # Optional, default is 14: Must be longer than the cron job frequency
             identities: |
-                -certSubject: sigstore-prod-prometheus-sa@project-rekor\.iam.gserviceaccount\.com
+                certIdentities:
+                    -certSubject: sigstore-prod-prometheus-sa@project-rekor\.iam.gserviceaccount\.com
+                fingerprints:
+                    - CDEDDE1155BDFCF5D5FE00A0BDD5966A3082B95FFC88CDD97FF0602E94A2BF4C
