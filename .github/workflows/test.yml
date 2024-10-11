@@ -1,6 +1,9 @@
 
 name: test rekor monitor
 on:
+    push:
+        branches:
+            - main
     schedule:
         - cron: '0 * * * *'
 
