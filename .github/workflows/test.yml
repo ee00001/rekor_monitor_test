@@ -1,0 +1,20 @@
+
+name: test rekor monitor
+on:
+    schedule:
+        - cron: '0 * * * *'
+
+permissions: read-all
+
+jobs:
+    run-consistency-pro:
+        permissions:
+            contents: read # Needed to checkout repositories
+            issues: write # Needed if you set "file_issue: true"
+            id-token: write # Needed to detect the current reusable repository and ref
+        uses: sigstore/rekor-monitor/.github/workflows/reusable_monitoring.yaml@main
+        with:
+            file_issue: true # Strongly recommended: Files an issue on monitoring failure
+            artifact_retention_days: 14 # Optional, default is 14: Must be longer than the cron job frequency
+            identities: |
+                -certSubject: sigstore-prod-prometheus-sa@project-rekor\.iam.gserviceaccount\.com
