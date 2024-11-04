@@ -6,7 +6,7 @@ require (
 	github.com/go-openapi/runtime v0.28.0
 	github.com/go-openapi/swag v0.23.0
 	github.com/google/go-github/v65 v65.0.0
-	github.com/mailgun/mailgun-go/v4 v4.16.0
+	github.com/mailgun/mailgun-go/v4 v4.18.1
 	github.com/migueleliasweb/go-github-mock v1.0.1
 	github.com/mocktools/go-smtp-mock/v2 v2.3.1
 	github.com/sendgrid/sendgrid-go v3.16.0+incompatible
